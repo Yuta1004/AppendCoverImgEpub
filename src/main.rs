@@ -21,7 +21,7 @@ fn add_file_into_zip<W: Write+Seek>(zip: &mut zip::ZipWriter<W>, src_filename: &
     println!("OK");
 }
 
-fn zip_2_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<()> {
+fn archive_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<()> {
     let dst_path = std::path::Path::new(dst_filename);
     let file = match std::fs::File::create(&dst_path) {
         Ok(f) => f,
@@ -128,7 +128,7 @@ fn main() {
     }
     opffile.flush().unwrap();
 
-    zip_2_epub("__extract_epub_tmp", &args.epub).unwrap();
+    archive_epub("__extract_epub_tmp", &args.epub).unwrap();
 
     if !args.keep_tmp {
         fs::remove_dir_all(Path::new("__extract_epub_tmp")).unwrap();
