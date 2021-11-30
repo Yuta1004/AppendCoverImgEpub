@@ -91,4 +91,28 @@ fn extract_epub(epub_filename: &str, dst_dirname: &str) {
 
 fn main() {
     println!("Hello \"append_coverimg_epub\"");
+
+    extract_epub("../src/book.epub", "__extract_epub_tmp");
+
+    let opffile = File::open("__extract_epub_tmp/OEBPS/book.opf").unwrap();
+    let mut opflines = io::BufReader::new(opffile).lines().filter(|e| match e {
+        Ok(_) => true,
+        Err(_) => false
+    }).map(|e| match e {
+        Ok(l) => l,
+        Err(_) => String::from(""),
+    }).collect::<Vec<String>>();
+
+    let manifest_idx = opflines.iter().position(|l| l.contains("<manifest>")).unwrap();
+    opflines.insert(manifest_idx+1, String::from(
+        "<item properties=\"cover-image\" id=\"my-cover-image\" href=\"cover.jpg\" media-type=\"image/jpeg\"/>"
+    ));
+
+    let mut opffile = File::create("__extract_epub_tmp/OEBPS/book.opf").unwrap();
+    for line in opflines {
+        write!(opffile, "{}\n", line);
+    }
+    opffile.flush().unwrap();
+
+    zip_2_epub("__extract_epub_tmp", "out.epub").unwrap();
 }
