@@ -7,6 +7,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 use zip::write::FileOptions;
+use structopt::StructOpt;
 
 fn add_file_into_zip<W: Write+Seek>(zip: &mut zip::ZipWriter<W>, src_filename: &str, dst_filename: &str, options: &FileOptions) -> zip::result::ZipResult<()> {
     print!("Adding {:?}: ", dst_filename);
@@ -89,10 +90,24 @@ fn extract_epub(epub_filename: &str, dst_dirname: &str) {
     }
 }
 
-fn main() {
-    println!("Hello \"append_coverimg_epub\"");
+/// Epubに表紙画像を追加する
+#[derive(StructOpt)]
+struct AppendCoverImgEpub {
+    /// Epubファイル
+    epub: String,
+    /// 表紙画像
+    img: String,
+    /// 画像の種類 (jpeg, png, ...)
+    media: String,
+    /// 生成時に使用した一時ディレクトリを保持する
+    #[structopt(short, long)]
+    keep_tmp: bool
+}
 
-    extract_epub("../src/book.epub", "__extract_epub_tmp");
+fn main() {
+    let args = AppendCoverImgEpub::from_args();
+
+    extract_epub(&args.epub, "__extract_epub_tmp");
 
     let opffile = File::open("__extract_epub_tmp/OEBPS/book.opf").unwrap();
     let mut opflines = io::BufReader::new(opffile).lines().filter(|e| match e {
@@ -104,15 +119,20 @@ fn main() {
     }).collect::<Vec<String>>();
 
     let manifest_idx = opflines.iter().position(|l| l.contains("<manifest>")).unwrap();
-    opflines.insert(manifest_idx+1, String::from(
-        "<item properties=\"cover-image\" id=\"my-cover-image\" href=\"cover.jpg\" media-type=\"image/jpeg\"/>"
-    ));
+    opflines.insert(manifest_idx+1,
+        format!("<item properties=\"cover-image\" id=\"my-cover-image\" href=\"cover.{}\" media-type=\"image/{}\"/>", args.media, args.media)
+    );
+    fs::copy(args.img, format!("__extract_epub_tmp/OEBPS/cover.{}", args.media)).unwrap();
 
     let mut opffile = File::create("__extract_epub_tmp/OEBPS/book.opf").unwrap();
     for line in opflines {
-        write!(opffile, "{}\n", line);
+        write!(opffile, "{}\n", line).unwrap();
     }
     opffile.flush().unwrap();
 
-    zip_2_epub("__extract_epub_tmp", "out.epub").unwrap();
+    zip_2_epub("__extract_epub_tmp", &args.epub).unwrap();
+
+    if !args.keep_tmp {
+        fs::remove_dir_all(Path::new("__extract_epub_tmp")).unwrap();
+    }
 }
