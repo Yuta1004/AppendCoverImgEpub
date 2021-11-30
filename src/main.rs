@@ -9,18 +9,16 @@ use walkdir::WalkDir;
 use zip::write::FileOptions;
 use structopt::StructOpt;
 
-fn add_file_into_zip<W: Write+Seek>(zip: &mut zip::ZipWriter<W>, src_filename: &str, dst_filename: &str, options: &FileOptions) -> zip::result::ZipResult<()> {
-    print!("Adding {:?}: ", dst_filename);
+fn add_file_into_zip<W: Write+Seek>(zip: &mut zip::ZipWriter<W>, src_filename: &str, dst_filename: &str, options: &FileOptions) {
+    print!("Archiving {:?}: ", dst_filename);
 
-    zip.start_file(dst_filename, *options)?;
-    let mut f = File::open(src_filename)?;
+    zip.start_file(dst_filename, *options).unwrap();
+    let mut f = File::open(src_filename).unwrap();
     let mut buffer = Vec::new();
-    f.read_to_end(&mut buffer)?;
-    zip.write_all(&*buffer)?;
+    f.read_to_end(&mut buffer).unwrap();
+    zip.write_all(&*buffer).unwrap();
 
     println!("OK");
-
-    Ok(())
 }
 
 fn zip_2_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<()> {
@@ -34,7 +32,7 @@ fn zip_2_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<(
     let options = FileOptions::default().unix_permissions(0o755);
 
     // mimetypeは必ずアーカイブの先頭に存在する必要がある
-    add_file_into_zip(&mut zip, &(src_dirname.to_string().clone()+"/mimetype"), "mimetype", &options)?;
+    add_file_into_zip(&mut zip, &(src_dirname.to_string().clone()+"/mimetype"), "mimetype", &options);
 
     // META-INF: ディレクトリ構造説明ディレクトリ
     // OEBPS: コンテンツディレクトリ
@@ -45,14 +43,14 @@ fn zip_2_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<(
             let name = path.strip_prefix(Path::new(&src_dirname)).unwrap();
 
             if path.is_file() {
-                add_file_into_zip(&mut zip, &path.display().to_string(), &name.display().to_string(), &options)?;
+                add_file_into_zip(&mut zip, &path.display().to_string(), &name.display().to_string(), &options);
             } else if name.as_os_str().len() != 0 {
-                zip.add_directory(name.display().to_string(), options)?;
+                zip.add_directory(name.display().to_string(), options).unwrap();
             }
         }
     }
 
-    zip.finish()?;
+    zip.finish().unwrap();
 
     Ok(())
 }
