@@ -1,5 +1,7 @@
+use std::io;
 use std::io::prelude::*;
 use std::io::{Seek, Write};
+use std::fs;
 use std::fs::File;
 use std::path::Path;
 
@@ -52,6 +54,39 @@ fn zip_2_epub(src_dirname: &str, dst_filename: &str) -> zip::result::ZipResult<(
     zip.finish()?;
 
     Ok(())
+}
+
+fn extract_epub(epub_filename: &str, dst_dirname: &str) {
+    let file = File::open(Path::new(epub_filename)).unwrap();
+    let mut archive = zip::ZipArchive::new(file).unwrap();
+
+    for idx in 0..archive.len() {
+        let path;
+        let mut archived_file = archive.by_index(idx).unwrap();
+        let outpath = match archived_file.enclosed_name() {
+            Some(_path) => {
+                path = String::from(dst_dirname.to_string().clone()+"/"+&_path.display().to_string());
+                Path::new(&path)
+            },
+            None => continue
+        };
+
+        print!("Extracting {}: ", outpath.display());
+
+        if (&*archived_file.name()).ends_with("/") {
+            fs::create_dir_all(&outpath).unwrap();
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(&p).unwrap();
+                }
+            }
+            let mut outfile = File::create(&outpath).unwrap();
+            io::copy(&mut archived_file, &mut outfile).unwrap();
+        }
+
+        println!("OK");
+    }
 }
 
 fn main() {
